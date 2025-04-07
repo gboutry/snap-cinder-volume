@@ -18,8 +18,11 @@ This module holds the definition of all configuration options the snap
 takes as input from `snap set`.
 """
 
+import socket
 import pydantic
 import pydantic.alias_generators
+
+from cinder_volume import network
 
 
 def to_kebab(value: str) -> str:
@@ -58,7 +61,8 @@ class CinderConfiguration(ParentConfig):
 class Settings(ParentConfig):
     debug: bool = False
     enable_telemetry_notifications: bool = False
-
+    fqdn: str = pydantic.Field(default_factory=socket.getfqdn)
+    ip_address: str = pydantic.Field(default_factory=network.get_default_ip)
 
 class BaseConfiguration(ParentConfig):
     """Base configuration class.
@@ -92,6 +96,14 @@ class CephConfiguration(BaseBackendConfiguration):
     rbd_key: str
 
 
+class PureStorageConfiguration(BaseBackendConfiguration):
+    volume_driver: str = "cinder.volume.drivers.pure.PureISCSIDriver"
+    san_ip: str
+    pure_api_token: str
+    pure_eradicate_on_delete: bool = True
+    pure_automatic_max_oversubscription_ratio: bool = False
+
+
 class Configuration(BaseConfiguration):
     """Holding additional configuration for the generic snap.
 
@@ -100,11 +112,11 @@ class Configuration(BaseConfiguration):
     """
 
     ceph: dict[str, CephConfiguration] = {}
+    pure: dict[str, PureStorageConfiguration] = {}
 
-    @pydantic.field_validator("ceph")
+    @pydantic.field_validator("ceph", "pure")
     def backend_validator(cls, v):
         known_backend_names = set()
-        known_pools = set()
 
         for backend in v.values():
             if backend.volume_backend_name in known_backend_names:
@@ -112,6 +124,14 @@ class Configuration(BaseConfiguration):
                     f"Duplicate backend name: {backend.volume_backend_name}"
                 )
             known_backend_names.add(backend.volume_backend_name)
+
+        return v
+
+    @pydantic.field_validator("ceph")
+    def ceph_known_pool_validator(cls, v):
+        known_pools = set()
+
+        for backend in v.values():
             if backend.rbd_pool in known_pools:
                 raise ValueError(f"Duplicate pool: {backend.rbd_pool}")
             known_pools.add(backend.rbd_pool)

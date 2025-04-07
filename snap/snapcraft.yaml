@@ -10,6 +10,15 @@ description: |
 grade: devel
 confinement: strict
 
+package-repositories:
+  - type: apt
+    ppa: gboutry/openstack-troublemakers
+
+layout:
+  /etc/iscsi/initiatorname.iscsi:
+    bind-file: $SNAP_COMMON/etc/iscsi/initiatorname.iscsi
+
+
 environment:
   LC_ALL: C
   PATH: $SNAP/usr/sbin:$SNAP/usr/bin:$SNAP/sbin:$SNAP/bin:$SNAP/usr/local/bin:$SNAP/usr/local/sbin:$PATH
@@ -39,6 +48,7 @@ parts:
       - python3-rtslib-fb
       - python3-minimal
       - python3-tz
+      - python3-purestorage
       - ceph-common
       - nfs-common
       - tgt
@@ -66,6 +76,10 @@ parts:
       - git
     python-requirements:
       - requirements.txt
+    # python-packages:
+    #   # requiring python-packages makes weird situation on distutils
+    #   - standard-distutils
+    #   - purestorage
     override-build: |
       craftctl default
       cinder-snap-helpers write-hooks

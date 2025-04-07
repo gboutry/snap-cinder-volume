@@ -25,6 +25,7 @@ from snaphelpers import Snap
 from . import configuration, context, error, log, services, template
 
 ETC_CINDER = Path("etc/cinder")
+ETC_ISCSI = Path("etc/iscsi")
 
 
 CONF = typing.TypeVar("CONF", bound=configuration.BaseConfiguration)
@@ -107,14 +108,16 @@ class CinderVolume(typing.Generic[CONF], abc.ABC):
     def directories(self) -> list[template.Directory]:
         """Directories to be created on the common path."""
         return [
-            template.CommonDirectory("etc/cinder"),
-            template.CommonDirectory("etc/cinder/cinder.conf.d"),
+            template.CommonDirectory(ETC_CINDER),
+            template.CommonDirectory(ETC_CINDER / "cinder.conf.d"),
+            template.CommonDirectory(ETC_ISCSI),
             template.CommonDirectory("lib/cinder"),
         ]
 
     def template_files(self) -> list[template.Template]:
         """Files to be templated."""
         return [
+            template.CommonTemplate("initiatorname.iscsi", ETC_ISCSI),
             template.CommonTemplate("cinder.conf", ETC_CINDER),
             template.CommonTemplate("rootwrap.conf", ETC_CINDER),
         ]
@@ -266,10 +269,20 @@ class GenericCinderVolume(CinderVolume[configuration.Configuration]):
                 config = self.get_config(snap)
             except pydantic.ValidationError as e:
                 raise error.CinderError("Invalid configuration") from e
-            backends = {
-                name: context.CephBackendContext(name, backend_config.model_dump())
-                for name, backend_config in config.ceph.items()
-            }
+            backends: dict[str, context.BaseBackendContext] = {}
+            backends.update(
+                {
+                    name: context.CephBackendContext(name, backend_config.model_dump())
+                    for name, backend_config in config.ceph.items()
+                }
+            )
+            backends.update(
+                {
+                    name: context.BaseBackendContext(name, backend_config.model_dump())
+                    for name, backend_config in config.pure.items()
+                }
+            )
+
             self._backend_contexts = context.CinderBackendContexts(
                 enabled_backends=list(backends.keys()),
                 contexts=backends,

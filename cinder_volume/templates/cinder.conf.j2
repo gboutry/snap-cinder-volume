@@ -7,6 +7,8 @@
 rootwrap_config = {{ snap_paths.common }}/etc/cinder/rootwrap.conf
 api_paste_confg = {{ snap_paths.common }}/etc/cinder/api-paste.ini
 debug = {{ settings.debug }}
+host = {{ settings.fqdn}}
+my_ip = {{ settings.ip_address }}
 use_syslog = True
 auth_strategy = keystone
 state_path = {{ snap_paths.common }}/lib/cinder

@@ -62,7 +62,7 @@ class BaseBackendContext(Context):
         This value is always associated to `namespace`, not
         necessarily associated with `backend_name`.
         """
-        return self.backend_config
+        return {k: v for k, v in self.backend_config.items() if v is not None}
 
     def cinder_context(self) -> typing.Mapping[str, typing.Any]:
         """Context specific for cinder configuration.
@@ -70,7 +70,7 @@ class BaseBackendContext(Context):
         This value is always associated to `backend_name`, not
         necessarily associated with `namespace`.
         """
-        return self.backend_config
+        return {k: v for k, v in self.backend_config.items() if v is not None}
 
     def template_files(self) -> list[template.Template]:
         """Files to be templated."""
